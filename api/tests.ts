@@ -1,6 +1,9 @@
 import type { TestRun, TestRunStatus } from '../types/domain';
 import { generateMockTestRun, generateMockTestRuns } from '../utils/mockData';
 
+// Store active test runs for status updates
+const activeTestRuns = new Map<string, (testRun: TestRun) => void>();
+
 /**
  * Trigger a new test run for a DAC unit
  */
@@ -8,19 +11,43 @@ export async function triggerTestRun(unitId: string): Promise<TestRun> {
   try {
     // In production, this would make a POST request to start a test
     // For now, we'll simulate creating a test run
-    const testRun = generateMockTestRun(unitId, 'pending');
-    
-    // Simulate the test starting after a short delay
+    const testRun = generateMockTestRun(unitId, 'running');
+
+    // Simulate the test completing after a delay (2-5 seconds)
+    const delay = 2000 + Math.random() * 3000;
     setTimeout(() => {
-      // In a real app, you'd poll for status updates
-      console.log(`Test run ${testRun.id} started for unit ${unitId}`);
-    }, 1000);
+      // Generate completed test run with results
+      const completedTestRun = generateMockTestRun(unitId, 'completed');
+      completedTestRun.id = testRun.id;
+      completedTestRun.startedAt = testRun.startedAt;
+      completedTestRun.completedAt = new Date().toISOString();
+
+      // Notify any listeners
+      const callback = activeTestRuns.get(testRun.id);
+      if (callback) {
+        callback(completedTestRun);
+        activeTestRuns.delete(testRun.id);
+      }
+    }, delay);
 
     return testRun;
   } catch (error) {
     console.error(`Error triggering test run for unit ${unitId}:`, error);
     throw error;
   }
+}
+
+/**
+ * Subscribe to test run status updates
+ */
+export function subscribeToTestRun(
+  testRunId: string,
+  callback: (testRun: TestRun) => void
+): () => void {
+  activeTestRuns.set(testRunId, callback);
+  return () => {
+    activeTestRuns.delete(testRunId);
+  };
 }
 
 /**

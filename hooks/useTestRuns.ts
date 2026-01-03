@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TestRun, TestRunStatus } from '../types/domain';
-import { triggerTestRun, fetchTestRuns, fetchTestRun, updateTestRunStatus } from '../api/tests';
+import { triggerTestRun, fetchTestRuns, fetchTestRun, updateTestRunStatus, subscribeToTestRun } from '../api/tests';
 
 interface UseTestRunsOptions {
   unitId: string | null;
@@ -49,15 +49,37 @@ export function useTestRuns(options: UseTestRunsOptions): UseTestRunsResult {
 
     try {
       const newTestRun = await triggerTestRun(unitId);
-      // Refresh the list after triggering
-      await fetchData();
+
+      // Subscribe to status updates for this test run
+      const unsubscribe = subscribeToTestRun(newTestRun.id, (updatedTestRun) => {
+        // Update the test run in the list when it completes
+        setTestRuns((prevRuns) => {
+          const index = prevRuns.findIndex((r) => r.id === updatedTestRun.id);
+          if (index >= 0) {
+            const updated = [...prevRuns];
+            updated[index] = updatedTestRun;
+            return updated;
+          }
+          // If not found, add it to the beginning
+          return [updatedTestRun, ...prevRuns];
+        });
+      });
+
+      // Clean up subscription after 10 seconds (test should complete by then)
+      setTimeout(() => {
+        unsubscribe();
+      }, 10000);
+
+      // Add the new test run to the list immediately
+      setTestRuns((prevRuns) => [newTestRun, ...prevRuns]);
+
       return newTestRun;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to trigger test run');
       setError(error);
       return null;
     }
-  }, [unitId, fetchData]);
+  }, [unitId]);
 
   useEffect(() => {
     fetchData();
