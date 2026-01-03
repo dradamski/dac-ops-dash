@@ -10,6 +10,10 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import SessionLocal
+from app.logging_config import get_logger
+from app.utils.database import transaction
+
+logger = get_logger("services.test_executor")
 
 
 def execute_test_run(test_run_id: UUID, unit_id: UUID, db: Session):
@@ -32,18 +36,29 @@ def execute_test_run(test_run_id: UUID, unit_id: UUID, db: Session):
     background_db = SessionLocal()
     
     try:
+        logger.info(
+            "Starting test execution",
+            extra={
+                "test_run_id": str(test_run_id),
+                "unit_id": str(unit_id),
+            }
+        )
+        
         # Simulate test execution time (2-5 seconds)
         execution_time = random.uniform(2.0, 5.0)
         time.sleep(execution_time)
         
         # Update test run status to running
-        test_run = background_db.query(models.TestRun).filter(models.TestRun.id == test_run_id).first()
-        if not test_run:
-            return
+        with transaction(background_db):
+            test_run = background_db.query(models.TestRun).filter(models.TestRun.id == test_run_id).first()
+            if not test_run:
+                logger.warning(f"Test run not found: {test_run_id}")
+                return
+            
+            test_run.status = models.TestRunStatusEnum.running
+            background_db.refresh(test_run)
         
-        test_run.status = models.TestRunStatusEnum.running
-        background_db.commit()
-        background_db.refresh(test_run)
+        logger.debug(f"Test run {test_run_id} status updated to running")
         
         # Simulate collecting sensor data
         # In production, replace this with actual sensor API calls:
@@ -56,41 +71,72 @@ def execute_test_run(test_run_id: UUID, unit_id: UUID, db: Session):
         results = _generate_test_results(sensor_data)
         
         # Create test result record
-        db_result = models.TestResult(
-            test_run_id=test_run_id,
-            passed=results['passed'],
-            summary=results['summary']
-        )
-        background_db.add(db_result)
-        background_db.flush()
-        
-        # Create test metrics
-        for metric in results['metrics']:
-            db_metric = models.TestMetric(
-                test_result_id=db_result.id,
-                name=metric['name'],
-                value=metric['value'],
-                unit=metric['unit'],
-                threshold_min=metric.get('threshold_min'),
-                threshold_max=metric.get('threshold_max')
+        with transaction(background_db):
+            test_run = background_db.query(models.TestRun).filter(models.TestRun.id == test_run_id).first()
+            if not test_run:
+                logger.warning(f"Test run not found during result creation: {test_run_id}")
+                return
+            
+            # Create test result record
+            db_result = models.TestResult(
+                test_run_id=test_run_id,
+                passed=results['passed'],
+                summary=results['summary']
             )
-            background_db.add(db_metric)
+            background_db.add(db_result)
+            background_db.flush()
+            
+            # Create test metrics
+            for metric in results['metrics']:
+                db_metric = models.TestMetric(
+                    test_result_id=db_result.id,
+                    name=metric['name'],
+                    value=metric['value'],
+                    unit=metric['unit'],
+                    threshold_min=metric.get('threshold_min'),
+                    threshold_max=metric.get('threshold_max')
+                )
+                background_db.add(db_metric)
+            
+            # Update test run to completed
+            test_run.status = models.TestRunStatusEnum.completed
+            test_run.completed_at = datetime.utcnow()
         
-        # Update test run to completed
-        test_run.status = models.TestRunStatusEnum.completed
-        test_run.completed_at = datetime.utcnow()
-        background_db.commit()
+        logger.info(
+            "Test execution completed successfully",
+            extra={
+                "test_run_id": str(test_run_id),
+                "unit_id": str(unit_id),
+                "passed": results['passed'],
+            }
+        )
+        
     except Exception as e:
         # If test execution fails, mark test run as failed
+        logger.error(
+            f"Test execution failed: {test_run_id}",
+            extra={
+                "test_run_id": str(test_run_id),
+                "unit_id": str(unit_id),
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+            exc_info=True
+        )
+        
         try:
-            test_run = background_db.query(models.TestRun).filter(models.TestRun.id == test_run_id).first()
-            if test_run:
-                test_run.status = models.TestRunStatusEnum.failed
-                test_run.error = str(e)
-                test_run.completed_at = datetime.utcnow()
-                background_db.commit()
-        except:
-            pass
+            with transaction(background_db):
+                test_run = background_db.query(models.TestRun).filter(models.TestRun.id == test_run_id).first()
+                if test_run:
+                    test_run.status = models.TestRunStatusEnum.failed
+                    test_run.error = str(e)
+                    test_run.completed_at = datetime.utcnow()
+        except Exception as inner_e:
+            logger.error(
+                f"Failed to update test run status to failed: {test_run_id}",
+                extra={"error": str(inner_e)},
+                exc_info=True
+            )
     finally:
         background_db.close()
 
