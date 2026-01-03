@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 import os
 from dotenv import load_dotenv
 
@@ -22,8 +23,10 @@ class Settings(BaseSettings):
     database_password: str = os.getenv("DATABASE_PASSWORD", "dac_password")
     cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(
+        env_file=".env",
+        extra="ignore"  # Ignore extra fields from .env file
+    )
 
 
 settings = Settings()

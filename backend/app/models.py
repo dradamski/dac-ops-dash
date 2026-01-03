@@ -44,7 +44,7 @@ class DacUnit(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
-    sensor_readings = relationship("SensorReading", back_populates="unit", cascade="all, delete-orphan")
+    sensor_readings = relationship("SensorReading", back_populates="dac_unit", cascade="all, delete-orphan")
     test_runs = relationship("TestRun", back_populates="unit", cascade="all, delete-orphan")
 
 
@@ -61,7 +61,7 @@ class SensorReading(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    unit = relationship("DacUnit", back_populates="sensor_readings")
+    dac_unit = relationship("DacUnit", back_populates="sensor_readings")
 
 
 class TestRun(Base):

@@ -44,9 +44,13 @@ def seed_database(db: Session):
         ),
     ]
     
+    import random
+    import math
+    
+    # Add units to database
     for unit in units:
         db.add(unit)
-    db.commit()
+    db.flush()  # Flush to get IDs without committing
     
     # Generate sensor readings for the last 24 hours
     end_time = datetime.utcnow()
@@ -66,30 +70,26 @@ def seed_database(db: Session):
     while current_time <= end_time:
         for unit in units:
             for sensor_type, config in sensor_configs.items():
-                import random
-                import math
-                
                 # Add realistic variation
                 trend = math.sin((current_time - start_time).total_seconds() / 3600) * 0.3
                 random_variation = (random.random() - 0.5) * config["variation"]
                 value = config["base"] + trend * config["variation"] + random_variation
                 value = max(0, value)
                 
-                readings.append(
-                    SensorReading(
-                        id=uuid4(),
-                        unit_id=unit.id,
-                        sensor_type=sensor_type,
-                        value=value,
-                        unit=config["unit"],
-                        timestamp=current_time,
-                    )
+                reading = SensorReading(
+                    id=uuid4(),
+                    unit_id=unit.id,
+                    sensor_type=sensor_type,
+                    value=value,
+                    unit=config["unit"],  # This is the measurement unit (ppm, °C, etc.)
+                    timestamp=current_time,
                 )
+                readings.append(reading)
         
         current_time += interval
     
-    # Batch insert readings
-    db.bulk_save_objects(readings)
+    # Add all readings
+    db.add_all(readings)
     db.commit()
     
     print(f"Seeded database with {len(units)} units and {len(readings)} sensor readings")

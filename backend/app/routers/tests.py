@@ -1,11 +1,12 @@
 """Test runs API endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from app.database import get_db
 from app import models, schemas
+from app.services.test_executor import execute_test_run
 
 router = APIRouter(prefix="/tests", tags=["tests"])
 
@@ -68,9 +69,10 @@ def get_test_runs(
 @router.post("/runs", response_model=schemas.TestRun)
 def create_test_run(
     test_run: schemas.TestRunCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Create a new test run."""
+    """Create a new test run and start execution in the background."""
     # Verify unit exists
     unit = db.query(models.DacUnit).filter(models.DacUnit.id == test_run.unit_id).first()
     if not unit:
@@ -84,6 +86,10 @@ def create_test_run(
     db.add(db_test_run)
     db.commit()
     db.refresh(db_test_run)
+    
+    # Start test execution in the background
+    # In production, this would trigger actual sensor API calls
+    background_tasks.add_task(execute_test_run, db_test_run.id, test_run.unit_id, db)
     
     # Transform to match schema
     return {

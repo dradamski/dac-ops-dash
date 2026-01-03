@@ -17,17 +17,37 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create enums
-    op.execute("CREATE TYPE unitstatusenum AS ENUM ('healthy', 'warning', 'critical')")
-    op.execute("CREATE TYPE sensortypeenum AS ENUM ('co2', 'temperature', 'airflow', 'efficiency')")
-    op.execute("CREATE TYPE testrunstatusenum AS ENUM ('pending', 'running', 'completed', 'failed')")
+    # Create enums with conditional logic to handle existing types
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE unitstatusenum AS ENUM ('healthy', 'warning', 'critical');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE sensortypeenum AS ENUM ('co2', 'temperature', 'airflow', 'efficiency');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE testrunstatusenum AS ENUM ('pending', 'running', 'completed', 'failed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
     
     # Create dac_units table
     op.create_table(
         'dac_units',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('status', sa.Enum('healthy', 'warning', 'critical', name='unitstatusenum'), nullable=False),
+        sa.Column('status', postgresql.ENUM('healthy', 'warning', 'critical', name='unitstatusenum', create_type=False), nullable=False),
         sa.Column('location', sa.String(255), nullable=True),
         sa.Column('last_updated', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -39,7 +59,7 @@ def upgrade() -> None:
         'sensor_readings',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column('unit_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('sensor_type', sa.Enum('co2', 'temperature', 'airflow', 'efficiency', name='sensortypeenum'), nullable=False),
+        sa.Column('sensor_type', postgresql.ENUM('co2', 'temperature', 'airflow', 'efficiency', name='sensortypeenum', create_type=False), nullable=False),
         sa.Column('value', sa.Numeric(10, 2), nullable=False),
         sa.Column('unit', sa.String(50), nullable=False),
         sa.Column('timestamp', sa.DateTime(), nullable=False),
@@ -54,7 +74,7 @@ def upgrade() -> None:
         'test_runs',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column('unit_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'running', 'completed', 'failed', name='testrunstatusenum'), nullable=False),
+        sa.Column('status', postgresql.ENUM('pending', 'running', 'completed', 'failed', name='testrunstatusenum', create_type=False), nullable=False),
         sa.Column('started_at', sa.DateTime(), nullable=False),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('error', sa.Text(), nullable=True),

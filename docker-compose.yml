@@ -1,36 +1,53 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: dac_ops_postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: dac_user
-      POSTGRES_PASSWORD: dac_password
-      POSTGRES_DB: dac_ops_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-dac_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dac_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dac_ops_db}
+    # Database port not exposed to host for security
+    # Only accessible from backend service via backend_network
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dac_user"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dac_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend_network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    # Note: PostgreSQL runs as non-root user by default (postgres user, UID 999)
+    # read_only filesystem removed to allow database initialization
+    # The data volume is isolated and only accessible from backend_network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: dac_ops_backend
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://dac_user:dac_password@postgres:5432/dac_ops_db
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-dac_user}:${POSTGRES_PASSWORD:-dac_password}@postgres:5432/${POSTGRES_DB:-dac_ops_db}}
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: dac_ops_db
-      DATABASE_USER: dac_user
-      DATABASE_PASSWORD: dac_password
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      DATABASE_NAME: ${POSTGRES_DB:-dac_ops_db}
+      DATABASE_USER: ${POSTGRES_USER:-dac_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-dac_password}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      UVICORN_RELOAD: ${UVICORN_RELOAD:---reload}
     ports:
       - "8000:8000"
     volumes:
@@ -38,15 +55,37 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - backend_network
+      - frontend_network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    # Remove --reload in production (use environment variable to control)
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 $${UVICORN_RELOAD}"
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: dac_ops_frontend
+    env_file:
+      - .env
     environment:
-      VITE_API_BASE_URL: http://localhost:8000/api
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
     ports:
       - "3000:3000"
     volumes:
@@ -54,8 +93,25 @@ services:
       - /app/node_modules
     depends_on:
       - backend
-    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - frontend_network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
 volumes:
   postgres_data:
+    driver: local
 
+# Define networks for isolation
+networks:
+  backend_network:
+    internal: false
+  frontend_network:
+    internal: false

@@ -44,13 +44,60 @@ function transformTestRun(backendRun: any): TestRun {
  */
 export async function triggerTestRun(unitId: string): Promise<TestRun> {
   try {
-    const backendRun = await post<any>('/tests/runs', { unit_id: unitId });
-    return transformTestRun(backendRun);
+    const backendRun = await post<any>('/tests/runs', { unitId });
+    const testRun = transformTestRun(backendRun);
+    
+    // Poll for test completion (test runs in background)
+    // In production, you might use WebSockets or Server-Sent Events instead
+    const pollForCompletion = async (): Promise<TestRun> => {
+      const maxAttempts = 30; // Poll for up to 30 seconds
+      let attempts = 0;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        
+        try {
+          const updatedRun = await fetchTestRun(testRun.id);
+          if (updatedRun && (updatedRun.status === 'completed' || updatedRun.status === 'failed')) {
+            return updatedRun;
+          }
+        } catch (err) {
+          console.warn('Error polling test run status:', err);
+        }
+        
+        attempts++;
+      }
+      
+      // Return the last known state if polling times out
+      return testRun;
+    };
+    
+    // Start polling in the background and notify subscribers when complete
+    pollForCompletion().then((completedRun) => {
+      const callback = activeTestRuns.get(testRun.id);
+      if (callback) {
+        callback(completedRun);
+      }
+    });
+    
+    return testRun;
   } catch (error) {
     // Fallback to mock data if API is not available
     if (import.meta.env.DEV) {
       console.warn('API unavailable, using mock data:', error);
       const testRun = generateMockTestRun(unitId, 'running');
+      
+      // Simulate completion after delay
+      setTimeout(() => {
+        const completedRun = generateMockTestRun(unitId, 'completed');
+        completedRun.id = testRun.id;
+        completedRun.startedAt = testRun.startedAt;
+        const callback = activeTestRuns.get(testRun.id);
+        if (callback) {
+          callback(completedRun);
+        }
+      }, 3000);
+      
       return testRun;
     }
     console.error(`Error triggering test run for unit ${unitId}:`, error);

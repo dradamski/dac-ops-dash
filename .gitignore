@@ -20,6 +20,13 @@ backend/*.pyc
 backend/.pytest_cache/
 backend/.mypy_cache/
 
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+secrets/
+*.secret
+
 # Editor directories and files
 .cursor/*
 .vscode/*

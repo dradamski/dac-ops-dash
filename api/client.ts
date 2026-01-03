@@ -22,7 +22,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -77,6 +77,16 @@ export async function post<T>(endpoint: string, data?: unknown): Promise<T> {
 export async function put<T>(endpoint: string, data?: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: 'PUT',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+}
+
+/**
+ * PATCH request helper
+ */
+export async function patch<T>(endpoint: string, data?: unknown): Promise<T> {
+  return apiRequest<T>(endpoint, {
+    method: 'PATCH',
     body: data ? JSON.stringify(data) : undefined,
   });
 }
