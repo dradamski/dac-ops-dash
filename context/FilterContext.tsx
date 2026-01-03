@@ -4,12 +4,14 @@ import type { SensorType, TimeRange } from '../types/domain';
 interface FilterState {
   selectedUnitId: string | null;
   selectedSensorType: SensorType | null;
+  selectedBuilding: string | null;
   timeRange: TimeRange | null;
 }
 
 interface FilterContextValue extends FilterState {
   setSelectedUnitId: (unitId: string | null) => void;
   setSelectedSensorType: (sensorType: SensorType | null) => void;
+  setSelectedBuilding: (building: string | null) => void;
   setTimeRange: (timeRange: TimeRange | null) => void;
   resetFilters: () => void;
 }
@@ -20,6 +22,7 @@ interface FilterProviderProps {
   children: ReactNode;
   defaultUnitId?: string | null;
   defaultSensorType?: SensorType | null;
+  defaultBuilding?: string | null;
   defaultTimeRange?: TimeRange | null;
 }
 
@@ -40,26 +43,31 @@ export function FilterProvider({
   children,
   defaultUnitId = null,
   defaultSensorType = null,
+  defaultBuilding = null,
   defaultTimeRange = getDefaultTimeRange(),
 }: FilterProviderProps) {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(defaultUnitId);
   const [selectedSensorType, setSelectedSensorType] = useState<SensorType | null>(
     defaultSensorType
   );
+  const [selectedBuilding, setSelectedBuilding] = useState<string | null>(defaultBuilding);
   const [timeRange, setTimeRange] = useState<TimeRange | null>(defaultTimeRange);
 
   const resetFilters = useCallback(() => {
     setSelectedUnitId(defaultUnitId);
     setSelectedSensorType(defaultSensorType);
+    setSelectedBuilding(defaultBuilding);
     setTimeRange(defaultTimeRange || getDefaultTimeRange());
-  }, [defaultUnitId, defaultSensorType, defaultTimeRange]);
+  }, [defaultUnitId, defaultSensorType, defaultBuilding, defaultTimeRange]);
 
   const value: FilterContextValue = {
     selectedUnitId,
     selectedSensorType,
+    selectedBuilding,
     timeRange,
     setSelectedUnitId,
     setSelectedSensorType,
+    setSelectedBuilding,
     setTimeRange,
     resetFilters,
   };

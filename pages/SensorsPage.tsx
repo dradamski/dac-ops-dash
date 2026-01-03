@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useFilters } from '../context/FilterContext';
 import { useDacUnits } from '../hooks/useDacUnits';
 import { useSensorData } from '../hooks/useSensorData';
 import { SensorChart } from '../components/sensors/SensorChart';
 import { SensorSelector } from '../components/sensors/SensorSelector';
 import { TimeRangePicker } from '../components/sensors/TimeRangePicker';
+import { BuildingFilter } from '../components/common/BuildingFilter';
 import { Card } from '../components/common/Card';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { filterUnitsByBuilding } from '../utils/buildings';
 import type { SensorType } from '../types/domain';
 
 /**
@@ -18,18 +20,28 @@ export function SensorsPage() {
   const {
     selectedUnitId,
     selectedSensorType,
+    selectedBuilding,
     timeRange,
     setSelectedUnitId,
     setSelectedSensorType,
+    setSelectedBuilding,
     setTimeRange,
   } = useFilters();
 
-  // Set default unit if none selected
+  // Filter units by building
+  const filteredUnits = useMemo(() => {
+    return filterUnitsByBuilding(units, selectedBuilding);
+  }, [units, selectedBuilding]);
+
+  // Set default unit if none selected (from filtered units)
   useEffect(() => {
-    if (!selectedUnitId && units.length > 0) {
-      setSelectedUnitId(units[0].id);
+    if (!selectedUnitId && filteredUnits.length > 0) {
+      setSelectedUnitId(filteredUnits[0].id);
+    } else if (selectedUnitId && !filteredUnits.find((u) => u.id === selectedUnitId)) {
+      // If selected unit is not in filtered list, clear selection
+      setSelectedUnitId(null);
     }
-  }, [selectedUnitId, units, setSelectedUnitId]);
+  }, [selectedUnitId, filteredUnits, setSelectedUnitId]);
 
   // Set default time range if none set
   useEffect(() => {
@@ -55,7 +67,7 @@ export function SensorsPage() {
     enabled: !!(selectedUnitId && selectedSensorType && timeRange),
   });
 
-  const selectedUnit = units.find((u) => u.id === selectedUnitId);
+  const selectedUnit = filteredUnits.find((u) => u.id === selectedUnitId);
 
   if (unitsLoading) {
     return <LoadingState message="Loading units..." />;
@@ -72,6 +84,12 @@ export function SensorsPage() {
         <div className="sensors-controls">
           <Card title="Filters">
             <div className="controls-content">
+              <BuildingFilter
+                units={units}
+                selectedBuilding={selectedBuilding}
+                onSelect={setSelectedBuilding}
+              />
+
               <div className="control-group">
                 <label htmlFor="unit-select">Unit</label>
                 <select
@@ -81,7 +99,7 @@ export function SensorsPage() {
                   className="select-input"
                 >
                   <option value="">Select a unit</option>
-                  {units.map((unit) => (
+                  {filteredUnits.map((unit) => (
                     <option key={unit.id} value={unit.id}>
                       {unit.name}
                     </option>
