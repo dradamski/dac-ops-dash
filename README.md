@@ -35,13 +35,17 @@ This project focuses on usability, system observability, and end-to-end ownershi
 - Recharts (data visualization)
 - CSS Modules or Tailwind CSS
 
-**Backend (Lightweight / Simulated)**
-- REST API (mocked JSON or simple FastAPI service)
-- Time-series sensor data simulation
+**Backend**
+- FastAPI (Python) REST API
+- PostgreSQL database
+- SQLAlchemy ORM
+- Alembic for database migrations
 
 **Tooling & Deployment**
-- GitHub Actions (CI)
-- Vercel or Netlify (hosting)
+- Docker & Docker Compose
+- Alembic for database migrations
+- GitHub Actions (CI) - optional
+- Vercel or Netlify (hosting) - optional
 
 ---
 

@@ -1,4 +1,5 @@
 import type { SensorReading, SensorType, SensorDataFilter } from '../types/domain';
+import { get } from './client';
 import { generateMockSensorReadings } from '../utils/mockData';
 
 /**
@@ -8,8 +9,6 @@ export async function fetchSensorReadings(
   filter: SensorDataFilter
 ): Promise<SensorReading[]> {
   try {
-    // In production, this would make a real API call
-    // For now, we'll use mock data
     const { unitId, sensorType, timeRange } = filter;
 
     if (!sensorType || !timeRange) {
@@ -20,16 +19,34 @@ export async function fetchSensorReadings(
       throw new Error('unitId is required');
     }
 
-    // Generate mock data for the specified time range
-    return generateMockSensorReadings(
-      sensorType,
-      unitId,
-      timeRange.start,
-      timeRange.end,
-      5 // 5-minute intervals
+    // Format dates for API
+    const startTime = timeRange.start.toISOString();
+    const endTime = timeRange.end.toISOString();
+
+    const readings = await get<any[]>(
+      `/sensors/readings?unitId=${unitId}&sensorType=${sensorType}&startTime=${startTime}&endTime=${endTime}`
     );
+
+    // Transform backend response to match frontend types
+    return readings.map((reading) => ({
+      timestamp: reading.timestamp,
+      sensorType: reading.sensor_type,
+      value: reading.value,
+      unit: reading.unit,
+      unitId: String(reading.unit_id),
+    }));
   } catch (error) {
-    // In a real app, you might want to log this error
+    // Fallback to mock data if API is not available
+    if (import.meta.env.DEV) {
+      console.warn('API unavailable, using mock data:', error);
+      return generateMockSensorReadings(
+        filter.sensorType!,
+        filter.unitId!,
+        filter.timeRange!.start,
+        filter.timeRange!.end,
+        5
+      );
+    }
     console.error('Error fetching sensor readings:', error);
     throw error;
   }
@@ -63,8 +80,17 @@ export async function fetchMultipleSensorReadings(
  * Get available sensor types for a unit
  */
 export async function getAvailableSensorTypes(unitId: string): Promise<SensorType[]> {
-  // In a real app, this would query the API
-  // For now, return all sensor types
-  return ['co2', 'temperature', 'airflow', 'efficiency'];
+  try {
+    const sensorTypes = await get<SensorType[]>(`/sensors/types/${unitId}`);
+    return sensorTypes;
+  } catch (error) {
+    // Fallback to all sensor types if API is not available
+    if (import.meta.env.DEV) {
+      console.warn('API unavailable, returning default sensor types:', error);
+      return ['co2', 'temperature', 'airflow', 'efficiency'];
+    }
+    console.error(`Error fetching sensor types for unit ${unitId}:`, error);
+    throw error;
+  }
 }
 

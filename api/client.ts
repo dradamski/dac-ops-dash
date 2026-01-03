@@ -24,14 +24,6 @@ async function apiRequest<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   
   try {
-    // In development, simulate delay and use mock data
-    if (import.meta.env.DEV) {
-      await simulateDelay(300);
-      // For now, we'll throw an error to indicate we're using mock data
-      // The actual API functions will handle mock data generation
-      throw new Error('Using mock data in development');
-    }
-
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -41,17 +33,24 @@ async function apiRequest<T>(
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorText = await response.text();
+      let errorMessage = `API request failed: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();
   } catch (error) {
-    // In development, we'll use mock data instead of real API
-    // This allows the app to work without a backend
-    if (import.meta.env.DEV) {
-      throw error; // Let the calling function handle mock data
+    // Re-throw with more context if it's not already an Error
+    if (error instanceof Error) {
+      throw error;
     }
-    throw error;
+    throw new Error(`API request failed: ${String(error)}`);
   }
 }
 
