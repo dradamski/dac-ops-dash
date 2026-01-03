@@ -1,11 +1,21 @@
+import { BrowserRouter } from 'react-router-dom';
+import { FilterProvider } from '../context/FilterContext';
+import { Layout } from './Layout';
+import { AppRoutes } from './routes';
+
+/**
+ * Main App component
+ */
 function App() {
     return (
-        <div>
-            <h1>DAC Operations Dashboard</h1>
-            <p>Project setup complete. Ready for development.</p>
-        </div>
-    )
+        <BrowserRouter>
+            <FilterProvider>
+                <Layout>
+                    <AppRoutes />
+                </Layout>
+            </FilterProvider>
+        </BrowserRouter>
+    );
 }
 
-export default App
-
+export default App;
