@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useFilters } from '../context/FilterContext';
 import { useDacUnits } from '../hooks/useDacUnits';
 import { useSensorData } from '../hooks/useSensorData';
@@ -15,7 +14,6 @@ import type { SensorType } from '../types/domain';
  * Sensors page for viewing sensor data charts
  */
 export function SensorsPage() {
-  const [searchParams] = useSearchParams();
   const { units, isLoading: unitsLoading } = useDacUnits();
   const {
     selectedUnitId,
@@ -25,22 +23,6 @@ export function SensorsPage() {
     setSelectedSensorType,
     setTimeRange,
   } = useFilters();
-
-  // Read URL params and set filters
-  useEffect(() => {
-    const unitIdFromUrl = searchParams.get('unitId');
-    const sensorTypeFromUrl = searchParams.get('sensorType') as SensorType | null;
-
-    if (unitIdFromUrl && unitIdFromUrl !== selectedUnitId) {
-      setSelectedUnitId(unitIdFromUrl);
-    }
-
-    if (sensorTypeFromUrl && ['co2', 'temperature', 'airflow', 'efficiency'].includes(sensorTypeFromUrl)) {
-      if (sensorTypeFromUrl !== selectedSensorType) {
-        setSelectedSensorType(sensorTypeFromUrl);
-      }
-    }
-  }, [searchParams, selectedUnitId, selectedSensorType, setSelectedUnitId, setSelectedSensorType]);
 
   // Set default unit if none selected
   useEffect(() => {

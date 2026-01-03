@@ -169,7 +169,6 @@ export function TestsPage() {
                 <TestResultsPanel
                   results={selectedTestRun.results}
                   testId={selectedTestRun.id}
-                  unitId={selectedTestRun.unitId}
                 />
               )}
             </>

@@ -1,53 +1,17 @@
-import { useNavigate } from 'react-router-dom';
 import { Card } from '../common/Card';
-import type { TestResults, SensorType } from '../../types/domain';
+import type { TestResults } from '../../types/domain';
 import { formatSensorValue } from '../../utils/formatters';
 
 interface TestResultsPanelProps {
   results: TestResults;
   testId?: string;
-  unitId: string;
-}
-
-/**
- * Map metric names to sensor types
- */
-function mapMetricToSensorType(metricName: string): SensorType | null {
-  const name = metricName.toLowerCase();
-  if (name.includes('co₂') || name.includes('co2') || name.includes('capture')) {
-    return 'efficiency'; // CO₂ Capture Rate maps to Capture Efficiency
-  }
-  if (name.includes('efficiency')) {
-    return 'efficiency';
-  }
-  if (name.includes('temperature') || name.includes('temp')) {
-    return 'temperature';
-  }
-  if (name.includes('airflow') || name.includes('air flow')) {
-    return 'airflow';
-  }
-  if (name.includes('pressure')) {
-    // System Pressure doesn't have a direct sensor type, return null
-    return null;
-  }
-  return null;
 }
 
 /**
  * Panel component displaying test run results
  */
-export function TestResultsPanel({ results, testId, unitId }: TestResultsPanelProps) {
-  const navigate = useNavigate();
+export function TestResultsPanel({ results, testId }: TestResultsPanelProps) {
   const { passed, metrics, summary } = results;
-
-  const handleMetricClick = (metricName: string) => {
-    const sensorType = mapMetricToSensorType(metricName);
-    const params = new URLSearchParams({ unitId });
-    if (sensorType) {
-      params.set('sensorType', sensorType);
-    }
-    navigate(`/sensors?${params.toString()}`);
-  };
 
   return (
     <Card
@@ -70,24 +34,13 @@ export function TestResultsPanel({ results, testId, unitId }: TestResultsPanelPr
           {metrics.map((metric, index) => {
             const inRange = metric.threshold
               ? (!metric.threshold.min || metric.value >= metric.threshold.min) &&
-              (!metric.threshold.max || metric.value <= metric.threshold.max)
+                (!metric.threshold.max || metric.value <= metric.threshold.max)
               : true;
 
-            const sensorType = mapMetricToSensorType(metric.name);
-            const isClickable = !!sensorType;
-
             return (
-              <div
-                key={index}
-                className={`metric-item ${isClickable ? 'clickable' : ''}`}
-                onClick={isClickable ? () => handleMetricClick(metric.name) : undefined}
-                title={isClickable ? 'Click to view sensor data' : undefined}
-              >
+              <div key={index} className="metric-item">
                 <div className="metric-header">
-                  <span className="metric-name">
-                    {metric.name}
-                    {isClickable && <span className="click-hint">🔗</span>}
-                  </span>
+                  <span className="metric-name">{metric.name}</span>
                   <span className={`metric-status ${inRange ? 'in-range' : 'out-of-range'}`}>
                     {inRange ? '✓' : '✗'}
                   </span>
@@ -173,23 +126,6 @@ export function TestResultsPanel({ results, testId, unitId }: TestResultsPanelPr
           background-color: white;
           border: 1px solid #e5e7eb;
           border-radius: 6px;
-          transition: all 0.2s;
-        }
-
-        .metric-item.clickable {
-          cursor: pointer;
-        }
-
-        .metric-item.clickable:hover {
-          border-color: #3b82f6;
-          background-color: #f9fafb;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .click-hint {
-          margin-left: 0.5rem;
-          font-size: 0.75rem;
-          opacity: 0.6;
         }
 
         .metric-header {
