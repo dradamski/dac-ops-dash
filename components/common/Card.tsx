@@ -5,14 +5,19 @@ interface CardProps {
   title?: string;
   className?: string;
   headerAction?: ReactNode;
+  onClick?: () => void;
 }
 
 /**
  * Reusable card component for displaying content in a contained box
  */
-export function Card({ children, title, className = '', headerAction }: CardProps) {
+export function Card({ children, title, className = '', headerAction, onClick }: CardProps) {
   return (
-    <div className={`card ${className}`}>
+    <div 
+      className={`card ${onClick ? 'clickable' : ''} ${className}`} 
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+    >
       {(title || headerAction) && (
         <div className="card-header">
           {title && <h3 className="card-title">{title}</h3>}

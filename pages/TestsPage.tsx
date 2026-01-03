@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDacUnits } from '../hooks/useDacUnits';
 import { useTestRuns } from '../hooks/useTestRuns';
 import { TestRunButton } from '../components/workflows/TestRunButton';
@@ -13,9 +14,31 @@ import { formatTimestamp } from '../utils/formatters';
  * Tests page for running and viewing test results
  */
 export function TestsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { units, isLoading: unitsLoading } = useDacUnits();
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(
+    searchParams.get('unitId')
+  );
   const [selectedTestRunId, setSelectedTestRunId] = useState<string | null>(null);
+
+  // Update selectedUnitId when URL param changes
+  useEffect(() => {
+    const unitIdFromUrl = searchParams.get('unitId');
+    if (unitIdFromUrl && unitIdFromUrl !== selectedUnitId) {
+      setSelectedUnitId(unitIdFromUrl);
+    }
+  }, [searchParams, selectedUnitId]);
+
+  // Update URL when selectedUnitId changes
+  const handleUnitChange = (unitId: string | null) => {
+    setSelectedUnitId(unitId);
+    setSelectedTestRunId(null);
+    if (unitId) {
+      setSearchParams({ unitId });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const {
     testRuns,
@@ -56,10 +79,7 @@ export function TestsPage() {
             <div className="unit-selector">
               <select
                 value={selectedUnitId || ''}
-                onChange={(e) => {
-                  setSelectedUnitId(e.target.value || null);
-                  setSelectedTestRunId(null);
-                }}
+                onChange={(e) => handleUnitChange(e.target.value || null)}
                 className="select-input"
               >
                 <option value="">Select a unit</option>
@@ -102,9 +122,8 @@ export function TestsPage() {
                   {testRuns.map((run) => (
                     <div
                       key={run.id}
-                      className={`test-run-item ${
-                        selectedTestRunId === run.id ? 'selected' : ''
-                      }`}
+                      className={`test-run-item ${selectedTestRunId === run.id ? 'selected' : ''
+                        }`}
                       onClick={() => setSelectedTestRunId(run.id)}
                     >
                       <div className="test-run-header">

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDacUnits } from '../hooks/useDacUnits';
 import { SystemStatusCard } from '../components/overview/SystemStatusCard';
 import { UnitStatusGrid } from '../components/overview/UnitStatusGrid';
@@ -6,13 +7,18 @@ import { AlertBanner } from '../components/overview/AlertBanner';
 import { Card } from '../components/common/Card';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
-import type { UnitStatus } from '../types/domain';
+import type { UnitStatus, DacUnit } from '../types/domain';
 
 /**
  * Dashboard page showing system overview and unit status
  */
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { units, isLoading, error, refetch } = useDacUnits();
+
+  const handleUnitClick = (unit: DacUnit) => {
+    navigate(`/tests?unitId=${unit.id}`);
+  };
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
@@ -56,12 +62,12 @@ export function DashboardPage() {
           action={
             criticalUnits.length > 0
               ? {
-                  label: 'View Units',
-                  onClick: () => {
-                    // Scroll to units section
-                    document.getElementById('units-section')?.scrollIntoView({ behavior: 'smooth' });
-                  },
-                }
+                label: 'View Units',
+                onClick: () => {
+                  // Scroll to units section
+                  document.getElementById('units-section')?.scrollIntoView({ behavior: 'smooth' });
+                },
+              }
               : undefined
           }
         />
@@ -75,7 +81,7 @@ export function DashboardPage() {
 
       <div id="units-section" className="units-section">
         <Card title="DAC Units">
-          <UnitStatusGrid units={units} />
+          <UnitStatusGrid units={units} onUnitClick={handleUnitClick} />
         </Card>
       </div>
 
