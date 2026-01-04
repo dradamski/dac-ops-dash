@@ -12,7 +12,6 @@ This project focuses on usability, system observability, and end-to-end ownershi
 - **Real-Time Sensor Visualization**
   - Time-series charts for CO₂ concentration, temperature, airflow, and capture efficiency
   - Configurable time ranges and sensor selection
-  - Building-based filtering for multi-location deployments
 - **System Health Overview**
   - High-level status indicators for DAC units
   - Threshold-based alerts for anomalous or degraded performance
@@ -443,8 +442,7 @@ dac-ops-dash/
 │   │   ├── Card.tsx
 │   │   ├── LoadingState.tsx
 │   │   ├── ErrorState.tsx
-│   │   ├── Tooltip.tsx
-│   │   └── BuildingFilter.tsx   # Building location filter
+│   │   └── Tooltip.tsx
 │   ├── overview/              # Dashboard components
 │   │   ├── SystemStatusCard.tsx
 │   │   ├── UnitStatusGrid.tsx
@@ -484,7 +482,6 @@ dac-ops-dash/
 ├── utils/                        # Utility functions
 │   ├── thresholds.ts
 │   ├── formatters.ts
-│   ├── buildings.ts             # Building extraction utilities
 │   └── mockData.ts
 │
 ├── docker-compose.yml            # Multi-container orchestration

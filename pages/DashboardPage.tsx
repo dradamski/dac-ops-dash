@@ -1,15 +1,12 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDacUnits } from '../hooks/useDacUnits';
-import { useFilters } from '../context/FilterContext';
 import { SystemStatusCard } from '../components/overview/SystemStatusCard';
 import { UnitStatusGrid } from '../components/overview/UnitStatusGrid';
 import { AlertBanner } from '../components/overview/AlertBanner';
-import { BuildingFilter } from '../components/common/BuildingFilter';
 import { Card } from '../components/common/Card';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
-import { filterUnitsByBuilding } from '../utils/buildings';
 import type { UnitStatus, DacUnit } from '../types/domain';
 
 /**
@@ -18,18 +15,12 @@ import type { UnitStatus, DacUnit } from '../types/domain';
 export function DashboardPage() {
   const navigate = useNavigate();
   const { units, isLoading, error, refetch } = useDacUnits();
-  const { selectedBuilding, setSelectedBuilding } = useFilters();
 
   const handleUnitClick = (unit: DacUnit) => {
     navigate(`/tests?unitId=${unit.id}`);
   };
 
-  // Filter units by building
-  const filteredUnits = useMemo(() => {
-    return filterUnitsByBuilding(units, selectedBuilding);
-  }, [units, selectedBuilding]);
-
-  // Calculate status counts based on filtered units
+  // Calculate status counts
   const statusCounts = useMemo(() => {
     const counts: Record<UnitStatus, number> = {
       healthy: 0,
@@ -37,17 +28,17 @@ export function DashboardPage() {
       critical: 0,
     };
 
-    filteredUnits.forEach((unit) => {
+    units.forEach((unit) => {
       counts[unit.status]++;
     });
 
     return counts;
-  }, [filteredUnits]);
+  }, [units]);
 
   // Get critical units for alert
   const criticalUnits = useMemo(() => {
-    return filteredUnits.filter((unit) => unit.status === 'critical');
-  }, [filteredUnits]);
+    return units.filter((unit) => unit.status === 'critical');
+  }, [units]);
 
   if (isLoading) {
     return <LoadingState message="Loading dashboard..." />;
@@ -82,18 +73,6 @@ export function DashboardPage() {
         />
       )}
 
-      <div className="filters-section">
-        <Card title="Filters">
-          <div className="filters-content">
-            <BuildingFilter
-              units={units}
-              selectedBuilding={selectedBuilding}
-              onSelect={setSelectedBuilding}
-            />
-          </div>
-        </Card>
-      </div>
-
       <div className="status-cards">
         <SystemStatusCard status="healthy" count={statusCounts.healthy} />
         <SystemStatusCard status="warning" count={statusCounts.warning} />
@@ -102,7 +81,7 @@ export function DashboardPage() {
 
       <div id="units-section" className="units-section">
         <Card title="DAC Units">
-          <UnitStatusGrid units={filteredUnits} onUnitClick={handleUnitClick} />
+          <UnitStatusGrid units={units} onUnitClick={handleUnitClick} />
         </Card>
       </div>
 
@@ -128,16 +107,6 @@ export function DashboardPage() {
           font-size: 1rem;
           color: #6b7280;
           margin: 0;
-        }
-
-        .filters-section {
-          margin-bottom: 2rem;
-        }
-
-        .filters-content {
-          display: flex;
-          gap: 1.5rem;
-          flex-wrap: wrap;
         }
 
         .status-cards {
