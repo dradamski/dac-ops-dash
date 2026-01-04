@@ -1,5 +1,5 @@
 """Pydantic schemas for request/response validation."""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -30,9 +30,17 @@ class TestRunStatus(str, Enum):
 
 # DAC Unit Schemas
 class DacUnitBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=255, description="Unit name")
     status: UnitStatus
-    location: Optional[str] = None
+    location: Optional[str] = Field(None, max_length=255, description="Unit location")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate unit name does not contain dangerous characters."""
+        if not v or not v.strip():
+            raise ValueError("Unit name cannot be empty")
+        return v.strip()
 
 
 class DacUnitCreate(DacUnitBase):
@@ -40,9 +48,9 @@ class DacUnitCreate(DacUnitBase):
 
 
 class DacUnitUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
     status: Optional[UnitStatus] = None
-    location: Optional[str] = None
+    location: Optional[str] = Field(None, max_length=255)
 
 
 class DacUnit(DacUnitBase):
@@ -59,7 +67,7 @@ class DacUnit(DacUnitBase):
 class SensorReadingBase(BaseModel):
     sensor_type: SensorType
     value: float
-    unit: str
+    unit: str = Field(..., min_length=1, max_length=50, description="Measurement unit")
     timestamp: datetime
 
 
@@ -93,7 +101,7 @@ class TestRunCreate(BaseModel):
 class TestRunUpdate(BaseModel):
     status: Optional[TestRunStatus] = None
     completed_at: Optional[datetime] = None
-    error: Optional[str] = None
+    error: Optional[str] = Field(None, max_length=1000, description="Error message if test failed")
 
 
 class TestRun(TestRunBase):
@@ -109,9 +117,9 @@ class TestRun(TestRunBase):
 
 # Test Result Schemas
 class TestMetricBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=255, description="Metric name")
     value: float
-    unit: str
+    unit: str = Field(..., min_length=1, max_length=50, description="Measurement unit")
     threshold_min: Optional[float] = None
     threshold_max: Optional[float] = None
 
@@ -130,7 +138,22 @@ class TestMetric(TestMetricBase):
 
 class TestResultBase(BaseModel):
     passed: bool
-    summary: str
+    summary: str = Field(..., min_length=1, max_length=5000, description="Test result summary")
+
+    @field_validator('summary')
+    @classmethod
+    def validate_summary(cls, v: str) -> str:
+        """Validate summary does not contain XSS or dangerous patterns."""
+        if not v or not v.strip():
+            raise ValueError("Summary cannot be empty")
+        
+        # Check for potential XSS patterns
+        dangerous_patterns = ['<script', 'javascript:', 'onerror=', 'onload=', 'onclick=', 'onmouseover=']
+        v_lower = v.lower()
+        for pattern in dangerous_patterns:
+            if pattern in v_lower:
+                raise ValueError(f"Invalid characters detected in summary: potential XSS")
+        return v.strip()
 
 
 class TestResultCreate(TestResultBase):

@@ -3,7 +3,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
+from typing import Optional
 import os
 from dotenv import load_dotenv
 
@@ -12,16 +13,41 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings."""
-    database_url: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://dac_user:dac_password@localhost:5432/dac_ops_db"
-    )
-    database_host: str = os.getenv("DATABASE_HOST", "localhost")
-    database_port: int = int(os.getenv("DATABASE_PORT", "5432"))
-    database_name: str = os.getenv("DATABASE_NAME", "dac_ops_db")
-    database_user: str = os.getenv("DATABASE_USER", "dac_user")
-    database_password: str = os.getenv("DATABASE_PASSWORD", "dac_password")
-    cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+    # Required fields - no defaults to prevent hardcoded credentials
+    database_url: str
+    database_host: str
+    database_port: int
+    database_name: str
+    database_user: str
+    database_password: str
+    cors_origins: str
+
+    @field_validator('database_url')
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database URL does not contain default credentials."""
+        if 'dac_password' in v or 'dac_user' in v:
+            raise ValueError(
+                "Default credentials detected in DATABASE_URL. "
+                "Please use a secure password and update your .env file."
+            )
+        return v
+
+    @field_validator('database_password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password is not the default weak password."""
+        if v == 'dac_password':
+            raise ValueError(
+                "Default password 'dac_password' is not allowed. "
+                "Please set a secure password in your .env file."
+            )
+        if len(v) < 8:
+            raise ValueError(
+                "Password must be at least 8 characters long. "
+                "Please set a secure password in your .env file."
+            )
+        return v
 
     model_config = ConfigDict(
         env_file=".env",
