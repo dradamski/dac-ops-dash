@@ -12,40 +12,49 @@ This project focuses on usability, system observability, and end-to-end ownershi
 - **Real-Time Sensor Visualization**
   - Time-series charts for CO₂ concentration, temperature, airflow, and capture efficiency
   - Configurable time ranges and sensor selection
+  - Building-based filtering for multi-location deployments
 - **System Health Overview**
   - High-level status indicators for DAC units
   - Threshold-based alerts for anomalous or degraded performance
+  - Click-to-navigate from dashboard to detailed views
 - **Operational Workflows**
-  - Ability to trigger test runs and view results (simulated)
-  - Clear separation between operational and public-facing views
+  - Ability to trigger test runs and view results (simulated with mock data generation)
+  - Background task execution for long-running tests
+  - Click-to-navigate from test results to sensor data views
 - **Responsive UI**
   - Designed for use across desktop and tablet devices
+  - Intuitive navigation with state persistence via URL parameters
 - **Production-Oriented Architecture**
   - Strong typing with TypeScript
   - Clean separation between UI, data fetching, and domain logic
+  - Structured logging and error handling
+  - Input validation and security best practices
 
 ---
 
 ## Tech Stack
 
 **Frontend**
-- React
-- TypeScript
-- Vite
-- Recharts (data visualization)
-- CSS Modules or Tailwind CSS
+- React 18.2.0
+- TypeScript 5.2.2
+- Vite 5.0.8
+- Recharts 2.10.3 (data visualization)
+- React Router DOM 6.20.0
+- Styled-jsx (scoped CSS)
 
 **Backend**
-- FastAPI (Python) REST API
-- PostgreSQL database
-- SQLAlchemy ORM
-- Alembic for database migrations
+- FastAPI 0.104.1 (Python REST API)
+- PostgreSQL 15 (Alpine)
+- SQLAlchemy 2.0.23 (ORM)
+- Alembic 1.12.1 (database migrations)
+- Pydantic 2.5.0 (data validation)
+- Structured JSON logging
 
 **Tooling & Deployment**
 - Docker & Docker Compose
-- Alembic for database migrations
-- GitHub Actions (CI) - optional
-- Vercel or Netlify (hosting) - optional
+- Automated startup script (`start.sh`)
+- Security vulnerability scanning (npm audit, pip-audit/safety)
+- Database seeding scripts
 
 ---
 
@@ -73,32 +82,65 @@ Before setting up this repository, ensure you have the following installed:
    ```
 
 3. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
+   
+   Create a `.env` file in the project root with the following **required** variables:
+   
+   ```env
+   # PostgreSQL Configuration (REQUIRED - no defaults allowed)
+   POSTGRES_USER=your_username
+   POSTGRES_PASSWORD=your_secure_password_min_8_chars
+   POSTGRES_DB=dac_ops_db
+   
+   # Database Connection URL (REQUIRED - must match credentials above)
+   DATABASE_URL=postgresql://your_username:your_secure_password_min_8_chars@postgres:5432/dac_ops_db
+   
+   # Backend Database Settings (REQUIRED - must match POSTGRES_* values)
+   DATABASE_HOST=postgres
+   DATABASE_PORT=5432
+   DATABASE_NAME=dac_ops_db
+   DATABASE_USER=your_username
+   DATABASE_PASSWORD=your_secure_password_min_8_chars
+   
+   # CORS Configuration
+   CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+   
+   # Frontend API URL
+   VITE_API_BASE_URL=http://localhost:8000/api
+   
+   # Backend Development Mode (set to empty string "" for production)
+   UVICORN_RELOAD=--reload
    ```
    
-   Edit `.env` and update the following:
-   - `POSTGRES_PASSWORD` - Set a strong password for the database
-   - `DATABASE_URL` - Update with your chosen password
-   - `CORS_ORIGINS` - Add your frontend URLs if different from defaults
-   - `UVICORN_RELOAD` - Set to empty string `""` for production
+   **Important Security Notes:**
+   - Passwords must be at least 8 characters long
+   - Default credentials (`dac_user`/`dac_password`) are not allowed
+   - All database-related variables are required (no fallback defaults)
 
 4. **Start all services with Docker:**
+   
+   **Option A: Use the automated startup script (recommended):**
    ```bash
-   docker-compose up -d
+   ./start.sh
    ```
-
-5. **Wait for services to be ready:**
+   
+   This script will:
+   - Verify `.env` file exists
+   - Start all Docker containers
+   - Wait for services to be healthy
+   - Automatically seed the database if it's empty
+   
+   **Option B: Manual startup:**
    ```bash
+   # Start containers
+   docker-compose up -d
+   
    # Check service status
    docker-compose ps
    
-   # View logs to ensure everything started correctly
+   # View logs
    docker-compose logs -f
-   ```
-
-6. **Seed the database with sample data (optional):**
-   ```bash
+   
+   # Seed database (if needed)
    docker-compose exec backend python seed_data.py
    ```
 
@@ -169,12 +211,17 @@ cp .env.example .env  # If .env.example exists, or create manually
 Edit `backend/.env` with your local database credentials:
 
 ```env
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/dac_ops_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=dac_ops_db
+# All fields are REQUIRED (no defaults)
+DATABASE_URL=postgresql://postgres:your_secure_password@localhost:5432/dac_ops_db
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=dac_ops_db
+DATABASE_USER=postgres
+DATABASE_PASSWORD=your_secure_password  # Must be at least 8 characters
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
+
+**Note:** The password must be at least 8 characters and cannot be the default `dac_password`.
 
 #### Step 4: Run Database Migrations
 
@@ -249,10 +296,37 @@ You'll need **three terminal windows**:
 
 #### Troubleshooting Local Setup
 
-- **Database connection errors**: Ensure PostgreSQL is running and credentials in `.env` are correct
+- **Database connection errors**: 
+  - Ensure PostgreSQL is running and credentials in `.env` are correct
+  - Verify password meets requirements (min 8 chars, not default)
+  - Check that `DATABASE_URL` matches your credentials
 - **Port already in use**: Change ports in `uvicorn` command or frontend `vite.config.ts`
 - **Module not found errors**: Ensure virtual environment is activated and dependencies are installed
 - **Migration errors**: Try `alembic downgrade -1` then `alembic upgrade head` to reset migrations
+- **Validation errors on startup**: Check that all required environment variables are set and passwords meet security requirements
+
+---
+
+## Security
+
+This project implements several security best practices:
+
+### Input Validation
+- All string fields have length limits to prevent DoS attacks
+- XSS protection on user-input fields (summary, names, etc.)
+- Pydantic schema validation on all API endpoints
+
+### Credential Management
+- **No hardcoded credentials** - All database credentials must be provided via environment variables
+- Password strength validation (minimum 8 characters, no default passwords)
+- Environment variable validation on startup
+
+### Security Scanning
+- **Frontend**: Run `npm run security:audit` to check for vulnerable dependencies
+- **Backend**: Run `python backend/check_security.py` to scan Python dependencies (requires `pip-audit` or `safety`)
+
+### Security Audit Report
+A comprehensive security audit report is available at `.cursor/SECURITY_FIX.md` documenting identified vulnerabilities and remediation strategies.
 
 ---
 
@@ -273,80 +347,150 @@ This approach keeps the UI intuitive while ensuring the system remains extensibl
 
 ```ts
 type SensorReading = {
-  timestamp: string;
+  id: string;
+  unitId: string;
   sensorType: 'co2' | 'temperature' | 'airflow' | 'efficiency';
   value: number;
   unit: string;
+  timestamp: string;
+  createdAt: string;
 };
 
 type DacUnit = {
   id: string;
   name: string;
   status: 'healthy' | 'warning' | 'critical';
+  location: string | null;
+  lastUpdated: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type TestRun = {
+  id: string;
+  unitId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt: string;
+  completedAt: string | null;
+  error: string | null;
+  result: TestResult | null;
+};
+
+type TestResult = {
+  id: string;
+  testRunId: string;
+  passed: boolean;
+  summary: string;
+  metrics: TestMetric[];
+  createdAt: string;
 };
 ```
+
+## Available Scripts
+
+### Frontend
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run security:audit` - Check for vulnerable npm dependencies
+- `npm run security:fix` - Auto-fix npm vulnerabilities
+- `npm run docker:up` - Start Docker containers
+- `npm run docker:down` - Stop Docker containers
+- `npm run docker:logs` - View container logs
+- `npm run docker:build` - Rebuild Docker images
+
+### Backend
+- `python backend/check_security.py` - Scan Python dependencies for vulnerabilities
+- `docker-compose exec backend python seed_data.py` - Seed database with sample data
+- `docker-compose exec backend alembic upgrade head` - Run database migrations
 
 ---
 
 ## Project Structure
 
 ```
-dac_dashboard/
-├── app/
-│   ├── App.tsx               # Main React component that mounts the app; contains JSX
-│   ├── routes.tsx            # Defines route components using JSX for pages
-│   └── Layout.tsx            # Layout wrapper with JSX for consistent page structure
+dac-ops-dash/
+├── app/                          # React app configuration
+│   ├── App.tsx                   # Main React component with router setup
+│   ├── routes.tsx                # Route definitions
+│   └── Layout.tsx                 # Layout wrapper component
+│
+├── backend/                      # FastAPI backend
+│   ├── app/
+│   │   ├── database.py           # Database connection & settings
+│   │   ├── models.py             # SQLAlchemy ORM models
+│   │   ├── schemas.py            # Pydantic request/response schemas
+│   │   ├── logging_config.py     # Structured logging configuration
+│   │   ├── routers/              # API route handlers
+│   │   │   ├── units.py          # DAC unit endpoints
+│   │   │   ├── sensors.py        # Sensor reading endpoints
+│   │   │   └── tests.py          # Test run endpoints
+│   │   ├── services/            # Business logic
+│   │   │   └── test_executor.py  # Test execution service
+│   │   └── utils/               # Utility functions
+│   │       ├── database.py      # Transaction management
+│   │       └── transformers.py  # Model-to-schema transformers
+│   ├── alembic/                 # Database migrations
+│   ├── main.py                  # FastAPI application entry point
+│   ├── seed_data.py             # Database seeding script
+│   ├── check_security.py        # Security vulnerability scanner
+│   ├── requirements.txt         # Python dependencies
+│   └── Dockerfile               # Backend container definition
 │
 ├── components/
-│   ├── overview/
-│   │   ├── SystemStatusCard.tsx   # UI component rendering status cards with JSX
-│   │   ├── UnitStatusGrid.tsx     # UI grid component showing DAC units; JSX included
-│   │   └── AlertBanner.tsx        # UI alert banner component; JSX included
-│   │
-│   ├── sensors/
-│   │   ├── SensorChart.tsx        # Component rendering charts with JSX
-│   │   ├── SensorSelector.tsx     # UI dropdown selector; JSX included
-│   │   ├── TimeRangePicker.tsx    # UI component for selecting time ranges; JSX included
-│   │   └── SensorLegend.tsx       # UI component displaying chart legends; JSX included
-│   │
-│   ├── workflows/
-│   │   ├── TestRunButton.tsx      # Button component triggering workflow; JSX included
-│   │   ├── TestRunStatus.tsx      # Component showing test status; JSX included
-│   │   └── TestResultsPanel.tsx   # Panel component displaying test results; JSX included
-│   │
-│   └── common/
-│       ├── Card.tsx               # Reusable UI card component; JSX included
-│       ├── LoadingState.tsx       # Component for loading spinner or placeholder; JSX included
-│       ├── ErrorState.tsx         # Error display component; JSX included
-│       └── Tooltip.tsx            # Tooltip UI component; JSX included
+│   ├── common/                   # Reusable UI components
+│   │   ├── Card.tsx
+│   │   ├── LoadingState.tsx
+│   │   ├── ErrorState.tsx
+│   │   ├── Tooltip.tsx
+│   │   └── BuildingFilter.tsx   # Building location filter
+│   ├── overview/              # Dashboard components
+│   │   ├── SystemStatusCard.tsx
+│   │   ├── UnitStatusGrid.tsx
+│   │   └── AlertBanner.tsx
+│   ├── sensors/                 # Sensor visualization components
+│   │   ├── SensorChart.tsx
+│   │   ├── SensorSelector.tsx
+│   │   ├── SensorLegend.tsx
+│   │   └── TimeRangePicker.tsx
+│   └── workflows/               # Test workflow components
+│       ├── TestRunButton.tsx
+│       ├── TestRunStatus.tsx
+│       └── TestResultsPanel.tsx
 │
-├── pages/
-│   ├── DashboardPage.tsx          # Page component rendering overview dashboard with JSX
-│   ├── SensorsPage.tsx            # Page component rendering sensor-specific charts and selectors; JSX included
-│   └── TestsPage.tsx              # Page component rendering workflow tests UI; JSX included
+├── pages/                        # Page components
+│   ├── DashboardPage.tsx         # Main dashboard
+│   ├── SensorsPage.tsx           # Sensor data visualization
+│   └── TestsPage.tsx            # Test run management
 │
-├── hooks/
-│   ├── useSensorData.ts           # Custom hook for fetching/managing sensor data; no JSX
-│   ├── useDacUnits.ts             # Custom hook for fetching/managing DAC units; no JSX
-│   └── useTestRuns.ts             # Custom hook for fetching/managing test run data; no JSX
+├── hooks/                        # Custom React hooks
+│   ├── useSensorData.ts
+│   ├── useDacUnits.ts
+│   └── useTestRuns.ts
 │
-├── api/
-│   ├── client.ts                  # API client logic; no JSX
-│   ├── sensors.ts                 # Functions for fetching sensor data; no JSX
-│   ├── units.ts                   # Functions for fetching DAC unit data; no JSX
-│   └── tests.ts                   # Functions for triggering and fetching test run results; no JSX
+├── api/                          # API client functions
+│   ├── client.ts                # Base API client
+│   ├── sensors.ts
+│   ├── units.ts
+│   └── tests.ts
 │
 ├── context/
-│   └── FilterContext.tsx          # React context provider for filters; JSX used for provider component
+│   └── FilterContext.tsx         # Global filter state management
 │
 ├── types/
-│   └── domain.ts                  # TypeScript type definitions for domain objects; no JSX
+│   └── domain.ts                # TypeScript type definitions
 │
-├── utils/
-│   ├── thresholds.ts              # Utility functions for threshold calculations; no JSX
-│   ├── formatters.ts              # Utility functions for formatting data; no JSX
-│   └── mockData.ts                # Simulated/mock sensor data; no JSX
+├── utils/                        # Utility functions
+│   ├── thresholds.ts
+│   ├── formatters.ts
+│   ├── buildings.ts             # Building extraction utilities
+│   └── mockData.ts
 │
-└── main.tsx                       # Entry point that renders <App /> into the DOM; JSX included
+├── docker-compose.yml            # Multi-container orchestration
+├── Dockerfile                    # Frontend container definition
+├── start.sh                      # Automated startup script
+├── package.json                  # Frontend dependencies & scripts
+└── main.tsx                      # React entry point
 ```
 
