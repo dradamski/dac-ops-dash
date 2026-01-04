@@ -77,7 +77,9 @@ Before setting up this repository, ensure you have the following installed:
 
 2. **Install frontend dependencies:**
    ```bash
+   cd frontend
    npm install
+   cd ..
    ```
 
 3. **Set up environment variables:**
@@ -265,7 +267,8 @@ cd ..
 #### Step 8: Start the Frontend Development Server
 
 ```bash
-# In project root directory
+# In frontend directory
+cd frontend
 npm run dev
 ```
 
@@ -290,6 +293,7 @@ You'll need **three terminal windows**:
 
 3. **Terminal 3 - Frontend**:
    ```bash
+   cd frontend
    npm run dev
    ```
 
@@ -410,84 +414,87 @@ type TestResult = {
 
 ```
 dac-ops-dash/
-├── app/                          # React app configuration
-│   ├── App.tsx                   # Main React component with router setup
-│   ├── routes.tsx                # Route definitions
-│   └── Layout.tsx                 # Layout wrapper component
+├── frontend/                     # React frontend application
+│   ├── src/
+│   │   ├── app/                  # React app configuration
+│   │   │   ├── App.tsx           # Main React component with router setup
+│   │   │   ├── routes.tsx        # Route definitions
+│   │   │   └── Layout.tsx        # Layout wrapper component
+│   │   ├── components/           # Reusable UI components
+│   │   │   ├── common/           # Shared UI primitives
+│   │   │   │   ├── Card.tsx
+│   │   │   │   ├── LoadingState.tsx
+│   │   │   │   ├── ErrorState.tsx
+│   │   │   │   └── Tooltip.tsx
+│   │   │   ├── overview/         # Dashboard components
+│   │   │   │   ├── SystemStatusCard.tsx
+│   │   │   │   ├── UnitStatusGrid.tsx
+│   │   │   │   └── AlertBanner.tsx
+│   │   │   ├── sensors/          # Sensor visualization components
+│   │   │   │   ├── SensorChart.tsx
+│   │   │   │   ├── SensorSelector.tsx
+│   │   │   │   ├── SensorLegend.tsx
+│   │   │   │   └── TimeRangePicker.tsx
+│   │   │   └── workflows/        # Test workflow components
+│   │   │       ├── TestRunButton.tsx
+│   │   │       ├── TestRunStatus.tsx
+│   │   │       └── TestResultsPanel.tsx
+│   │   ├── pages/                # Page components
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── SensorsPage.tsx
+│   │   │   └── TestsPage.tsx
+│   │   ├── hooks/                # Custom React hooks
+│   │   │   ├── useSensorData.ts
+│   │   │   ├── useDacUnits.ts
+│   │   │   └── useTestRuns.ts
+│   │   ├── api/                  # API client functions
+│   │   │   ├── client.ts         # Base API client
+│   │   │   ├── sensors.ts
+│   │   │   ├── units.ts
+│   │   │   └── tests.ts
+│   │   ├── context/               # React Context providers
+│   │   │   └── FilterContext.tsx
+│   │   ├── types/                 # TypeScript type definitions
+│   │   │   └── domain.ts
+│   │   ├── utils/                 # Utility functions
+│   │   │   ├── thresholds.ts
+│   │   │   ├── formatters.ts
+│   │   │   └── mockData.ts
+│   │   ├── main.tsx               # React entry point
+│   │   └── index.css              # Global styles
+│   ├── public/                    # Static assets
+│   │   └── (empty - static assets if needed)
+│   ├── package.json               # Frontend dependencies & scripts
+│   ├── vite.config.ts             # Vite configuration
+│   ├── tsconfig.json              # TypeScript configuration
+│   ├── index.html                 # HTML entry point
+│   └── Dockerfile                 # Frontend container definition
 │
-├── backend/                      # FastAPI backend
+├── backend/                       # FastAPI backend
 │   ├── app/
-│   │   ├── database.py           # Database connection & settings
-│   │   ├── models.py             # SQLAlchemy ORM models
-│   │   ├── schemas.py            # Pydantic request/response schemas
-│   │   ├── logging_config.py     # Structured logging configuration
-│   │   ├── routers/              # API route handlers
-│   │   │   ├── units.py          # DAC unit endpoints
-│   │   │   ├── sensors.py        # Sensor reading endpoints
-│   │   │   └── tests.py          # Test run endpoints
-│   │   ├── services/            # Business logic
-│   │   │   └── test_executor.py  # Test execution service
-│   │   └── utils/               # Utility functions
-│   │       ├── database.py      # Transaction management
-│   │       └── transformers.py  # Model-to-schema transformers
-│   ├── alembic/                 # Database migrations
-│   ├── main.py                  # FastAPI application entry point
-│   ├── seed_data.py             # Database seeding script
-│   ├── check_security.py        # Security vulnerability scanner
-│   ├── requirements.txt         # Python dependencies
-│   └── Dockerfile               # Backend container definition
+│   │   ├── database.py            # Database connection & settings
+│   │   ├── models.py              # SQLAlchemy ORM models
+│   │   ├── schemas.py             # Pydantic request/response schemas
+│   │   ├── logging_config.py      # Structured logging configuration
+│   │   ├── routers/               # API route handlers
+│   │   │   ├── units.py           # DAC unit endpoints
+│   │   │   ├── sensors.py         # Sensor reading endpoints
+│   │   │   └── tests.py           # Test run endpoints
+│   │   ├── services/              # Business logic
+│   │   │   └── test_executor.py   # Test execution service
+│   │   └── utils/                 # Utility functions
+│   │       ├── database.py        # Transaction management
+│   │       └── transformers.py    # Model-to-schema transformers
+│   ├── alembic/                   # Database migrations
+│   ├── main.py                    # FastAPI application entry point
+│   ├── seed_data.py               # Database seeding script
+│   ├── check_security.py          # Security vulnerability scanner
+│   ├── requirements.txt            # Python dependencies
+│   └── Dockerfile                 # Backend container definition
 │
-├── components/
-│   ├── common/                   # Reusable UI components
-│   │   ├── Card.tsx
-│   │   ├── LoadingState.tsx
-│   │   ├── ErrorState.tsx
-│   │   └── Tooltip.tsx
-│   ├── overview/              # Dashboard components
-│   │   ├── SystemStatusCard.tsx
-│   │   ├── UnitStatusGrid.tsx
-│   │   └── AlertBanner.tsx
-│   ├── sensors/                 # Sensor visualization components
-│   │   ├── SensorChart.tsx
-│   │   ├── SensorSelector.tsx
-│   │   ├── SensorLegend.tsx
-│   │   └── TimeRangePicker.tsx
-│   └── workflows/               # Test workflow components
-│       ├── TestRunButton.tsx
-│       ├── TestRunStatus.tsx
-│       └── TestResultsPanel.tsx
-│
-├── pages/                        # Page components
-│   ├── DashboardPage.tsx         # Main dashboard
-│   ├── SensorsPage.tsx           # Sensor data visualization
-│   └── TestsPage.tsx            # Test run management
-│
-├── hooks/                        # Custom React hooks
-│   ├── useSensorData.ts
-│   ├── useDacUnits.ts
-│   └── useTestRuns.ts
-│
-├── api/                          # API client functions
-│   ├── client.ts                # Base API client
-│   ├── sensors.ts
-│   ├── units.ts
-│   └── tests.ts
-│
-├── context/
-│   └── FilterContext.tsx         # Global filter state management
-│
-├── types/
-│   └── domain.ts                # TypeScript type definitions
-│
-├── utils/                        # Utility functions
-│   ├── thresholds.ts
-│   ├── formatters.ts
-│   └── mockData.ts
-│
-├── docker-compose.yml            # Multi-container orchestration
-├── Dockerfile                    # Frontend container definition
-├── start.sh                      # Automated startup script
-├── package.json                  # Frontend dependencies & scripts
-└── main.tsx                      # React entry point
+├── docker-compose.yml             # Multi-container orchestration
+├── start.sh                       # Automated startup script
+├── README.md                      # Project documentation
+└── .env                           # Environment variables (not in repo)
 ```
 

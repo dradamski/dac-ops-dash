@@ -17,6 +17,9 @@ RUN npm install
 # Copy application code
 COPY . .
 
+# Note: Vite will serve from the frontend directory root
+# with src/ as the source and public/ as the public directory
+
 # Change ownership (use numeric ID to avoid issues if user/group names differ)
 RUN chown -R 1001:1001 /app
 
