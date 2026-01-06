@@ -31,6 +31,22 @@ This project focuses on usability, system observability, and end-to-end ownershi
 
 ---
 
+## Screenshots
+
+### Dashboard Overview
+![Dashboard Overview](./docs/screenshots/dashboard-overview.png)
+*Main dashboard showing system status, unit health, and alerts*
+
+### Sensor Data Visualization
+![Sensor Data](./docs/screenshots/sensor-data.png)
+*Time-series charts displaying CO₂ concentration, temperature, airflow, and capture efficiency*
+
+### Test Run Management
+![Test Runs](./docs/screenshots/test-runs.png)
+*Test run execution interface with results and status tracking*
+
+---
+
 ## Tech Stack
 
 **Frontend**
